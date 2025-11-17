@@ -145,5 +145,9 @@ def delete_note(note_id):
     # Redirect back to the main page
     return redirect(url_for("index"))
 
+@app.route("/home")
+def home():
+    return render_template("home.html")
+
 if __name__ == "__main__":
     app.run(debug=True)
