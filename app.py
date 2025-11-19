@@ -97,8 +97,7 @@ class Attachment(db.Model):
         return f'<Attachment {self.id}: {self.original_filename}>'
 
 
-# ===== HELPER FUNCTIONS =====
-
+# HELPER FUNCTIONS
 def allowed_file(filename):
     """
     Check if a file has an allowed extension
@@ -111,13 +110,13 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-# ===== ROUTES =====
+# ROUTES
 # These functions handle different URLs and user requests
 
 # Main page route - handles both displaying notes (GET) and creating new notes (POST)
 @app.route("/", methods=["GET", "POST"])
 def index():
-    # ===== HANDLING NOTE CREATION (POST REQUEST) =====
+    # HANDLING NOTE CREATION (POST REQUEST)
     # This runs when user submits the "Create Note" form
     if request.method == "POST":
         # Get form data, with fallback defaults if fields are empty
@@ -142,7 +141,7 @@ def index():
             # We need to commit here so the note gets an ID before we can attach files
             db.session.commit()
 
-            # ===== HANDLE FILE UPLOADS =====
+            # HANDLE FILE UPLOADS
             # Check if any files were uploaded with the form
             if 'attachments' in request.files:
                 # Get all uploaded files (user can upload multiple at once)
@@ -183,10 +182,10 @@ def index():
         # Redirect back to the main page to show the new note
         return redirect(url_for("index"))
     
-    # ===== HANDLING NOTE DISPLAY (GET REQUEST) =====
+    # HANDLING NOTE DISPLAY (GET REQUEST)
     # This runs when user visits the page to view notes
 
-    # ===== STEP 1: Get all filter parameters from the URL =====
+    # STEP 1: Get all filter parameters from the URL
     # These are passed as query parameters when user submits the filter form
     selected_filter = request.args.get("class_filter", "All")  # Which class to show
     search_query = request.args.get("search", "").strip().lower()  # Search term
@@ -194,7 +193,7 @@ def index():
     date_filter = request.args.get("date_filter", "All")  # Time range filter
     sort_by = request.args.get("sort_by", "recent")  # How to sort the results
 
-    # ===== STEP 2: Start with a database query for all notes =====
+    # STEP 2: Start with a database query for all notes
     # Note.query is a SQLAlchemy query object that we can filter and sort
     query = Note.query
 
@@ -238,7 +237,7 @@ def index():
         if cutoff:
             query = query.filter(Note.created >= cutoff)
 
-    # ===== STEP 3: Sort the filtered results =====
+    # STEP 3: Sort the filtered results
     # Different sorting options to organize notes
     if sort_by == "recent":
         # Most recent notes first (default) - sort by ID descending
@@ -256,11 +255,11 @@ def index():
     # Execute the query to get the actual list of notes
     filtered_notes = query.all()
 
-    # ===== STEP 4: Get list of unique authors for the author filter dropdown =====
+    # STEP 4: Get list of unique authors for the author filter dropdown
     # Query the database to get all distinct author names
     unique_authors = sorted([author[0] for author in db.session.query(Note.author).distinct().all()])
 
-    # ===== STEP 5: Send everything to the template to display =====
+    # STEP 5: Send everything to the template to display
     return render_template(
         "index.html",
         notes=filtered_notes,  # The filtered and sorted notes to display
@@ -273,7 +272,7 @@ def index():
         authors=unique_authors  # List of all authors for the dropdown
     )
 
-# ===== EDIT NOTE ROUTE =====
+# EDIT NOTE ROUTE
 # Handles updating an existing note
 @app.route("/edit/<int:note_id>", methods=["POST"])
 def edit_note(note_id):
@@ -294,7 +293,7 @@ def edit_note(note_id):
     return redirect(url_for("index"))
 
 
-# ===== DELETE NOTE ROUTE =====
+# DELETE NOTE ROUTE
 # Handles removing a note from the system (also deletes associated files)
 @app.route("/delete/<int:note_id>", methods=["POST"])
 def delete_note(note_id):
@@ -318,7 +317,7 @@ def delete_note(note_id):
     return redirect(url_for("index"))
 
 
-# ===== FILE DOWNLOAD ROUTE =====
+# FILE DOWNLOAD ROUTE
 # Handles secure file downloads for attachments
 @app.route("/download/<int:attachment_id>")
 def download_file(attachment_id):
@@ -341,7 +340,7 @@ def download_file(attachment_id):
     )
 
 
-# ===== DATABASE AND UPLOADS INITIALIZATION =====
+# DATABASE AND UPLOADS INITIALIZATION
 # This function runs once when the app starts to set up the database and file storage
 def init_app():
     """
