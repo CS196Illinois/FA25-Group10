@@ -127,7 +127,7 @@ def index():
 
     # ===== STEP 5: Send everything to the template to display =====
     return render_template(
-        "index.html",
+        "indexv2.html",
         notes=notes_page,  # The paginated notes to display
         page=page,
         has_more=has_more,
