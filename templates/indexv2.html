@@ -17,6 +17,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   
+  <!-- Choices.js for searchable dropdowns -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+
   <style>
     /* ===== MAJOR CHANGE #3: CSS Custom Properties (Variables) ===== */
     /* BEFORE: Colors were hardcoded like #1a1f2e, #667eea, rgba(26, 31, 51, 0.6) */
@@ -390,6 +394,272 @@
         margin-left: 0;
       }
     }
+
+    /* ===== MODAL STYLES ===== */
+    
+    /* Modal overlay - dark background that covers entire page */
+    .modal-overlay {
+      display: none; /* Hidden by default */
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    /* Show modal when active class is added */
+    .modal-overlay.active {
+      display: flex;
+    }
+    
+    /* Modal content box */
+    .modal-content {
+      background: var(--bg-card);
+      border-radius: var(--radius-lg);
+      width: 90%;
+      max-width: 600px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: var(--shadow-lg);
+      border: 1px solid var(--border-light);
+      animation: modalSlideIn 0.3s ease;
+    }
+    
+    /* Smooth slide-in animation */
+    @keyframes modalSlideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    /* Modal header */
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 24px 28px;
+      border-bottom: 1px solid var(--border-light);
+    }
+    
+    .modal-title {
+      margin: 0;
+      font-family: var(--font-serif);
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    
+    /* Close button (X) */
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 32px;
+      color: var(--text-tertiary);
+      cursor: pointer;
+      padding: 0;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.2s ease;
+      line-height: 1;
+    }
+    
+    .modal-close:hover {
+      color: var(--text-primary);
+    }
+    
+    /* Modal body */
+    .modal-body {
+      padding: 28px;
+    }
+    
+    /* Form inside modal */
+    .modal-body form input,
+    .modal-body form select,
+    .modal-body form textarea {
+      width: 100%;
+    }
+    
+    .modal-body form textarea {
+      min-height: 140px;
+    }
+
+    /* Header search styling */
+    .header-search-form {
+      margin-right: 16px;
+    }
+
+    .header-search-input {
+      padding: 8px 16px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-light);
+      background: var(--bg-paper-dark);
+      color: var(--text-primary);
+      min-width: 250px;
+      font-size: 14px;
+    }
+
+    .header-search-input:focus {
+      outline: none;
+      border-color: var(--accent-terracotta);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+
+    /* Hide search on mobile */
+    @media (max-width: 768px) {
+      .header-search-form {
+        display: none;
+      }
+    }
+
+    /* ===== NEW SECTION CARDS ===== */
+
+    .section-card {
+      background: var(--bg-card);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      margin-bottom: 24px;
+      border: 1px solid var(--border-light);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .section-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .section-heading {
+      font-family: var(--font-serif);
+      font-size: 18px;
+      font-weight: 700;
+      margin: 0;
+      color: var(--text-primary);
+    }
+
+    .course-select {
+      flex: 1;
+      min-width: 200px;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      .section-header-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      
+      .course-select {
+        min-width: auto;
+        width: 100%;
+      }
+    }
+
+    /* ===== CHOICES.JS THEME CUSTOMIZATION ===== */
+
+    .choices {
+      margin-bottom: 0;
+    }
+
+    /* Main dropdown container - FORCE theme colors */
+    .choices__inner {
+      background: var(--bg-paper-dark) !important;
+      border: 1px solid var(--border-light) !important;
+      border-radius: var(--radius-md);
+      color: var(--text-primary) !important;
+      padding: 10px 14px;
+      min-height: 44px;
+      font-size: 14px;
+    }
+
+    .choices__inner:hover {
+      border-color: var(--border-medium) !important;
+    }
+
+    .choices.is-focused .choices__inner,
+    .choices.is-open .choices__inner {
+      border-color: var(--accent-terracotta) !important;
+      box-shadow: 0 0 0 3px var(--accent-soft) !important;
+    }
+
+    /* Dropdown menu */
+    .choices__list--dropdown {
+      background: var(--bg-card) !important;
+      border: 1px solid var(--border-light) !important;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-md);
+      z-index: 100;
+    }
+
+    /* Individual dropdown items */
+    .choices__list--dropdown .choices__item {
+      color: var(--text-primary) !important;
+      padding: 10px 14px;
+      font-size: 14px;
+    }
+
+    .choices__item--selectable {
+      transition: background 0.2s ease;
+    }
+
+    /* Highlighted item (hover/keyboard selection) */
+    .choices__item--selectable.is-highlighted {
+      background: var(--accent-soft) !important;
+      color: var(--accent-terracotta) !important;
+    }
+
+    /* Search input inside dropdown */
+    .choices__input {
+      background: var(--bg-paper-dark) !important;
+      color: var(--text-primary) !important;
+      margin-bottom: 0;
+      font-size: 14px;
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-sm);
+      padding: 8px;
+    }
+
+    .choices__input::placeholder {
+      color: var(--text-tertiary) !important;
+      opacity: 1;
+    }
+
+    /* Dropdown arrow */
+    .choices[data-type*='select-one']::after {
+      border-color: var(--text-secondary) transparent transparent transparent;
+      margin-top: -2px;
+    }
+
+    .choices[data-type*='select-one'].is-open::after {
+      border-color: transparent transparent var(--text-secondary) transparent;
+      margin-top: -7px;
+    }
+
+    /* No results message */
+    .choices__item--choice.has-no-choices {
+      color: var(--text-tertiary) !important;
+      background: var(--bg-card) !important;
+    }
+
+    /* Selected value display */
+    .choices__list--single .choices__item {
+      color: var(--text-primary) !important;
+    }
+
   </style>
 
   <script>
@@ -420,14 +690,27 @@
             <span class="tl-logo-sub">Class Notes</span>
           </div>
         </a>
-        
+
         <div class="tl-nav-actions">
-          <!-- Theme toggle button - switches between light and dark mode -->
+          <!-- Search bar in header -->
+          <form method="get" action="/notes-feed" class="header-search-form">
+            <input 
+              type="text" 
+              name="search" 
+              class="header-search-input"
+              placeholder="🔍 Search notes..." 
+              value="{{ search_query or '' }}"
+            >
+          </form>
+        
+          <!-- Theme toggle -->
           <button class="theme-toggle" aria-label="Toggle dark mode">
             <span class="moon-icon">🌙</span>
             <span class="sun-icon">☀️</span>
           </button>
         </div>
+
+        
       </nav>
     </div>
   </header>
@@ -437,58 +720,68 @@
   <div class="notes-page">
     <div class="tl-container">
       <div class="notes-title">📚 Class Notes</div>
-   
-      <!-- Filter and Search Bar -->
-      <div class="filter-section">
-        <form method="get" action="/notes-feed" class="filter-form">
 
-          <!-- Row 1: Main filters -->
-          <div class="filter-row">
-            <!-- Filter by class -->
-            <select name="class_filter" onchange="this.form.submit()">
-              <option value="All" {% if selected_filter == "All" %}selected{% endif %}>All Classes</option>
-              {% for c in classes %}
-              <option value="{{ c }}" {% if selected_filter == c %}selected{% endif %}>{{ c }}</option>
-              {% endfor %}
+      <!-- Share Your Notes Section -->
+      <div class="section-card">
+        <div class="section-header-row">
+          <h2 class="section-heading">📝 Share Your Notes</h2>
+          <button class="btn btn-accent" onclick="openModal()">Add Note +</button>
+        </div>
+      </div>
+
+      <!-- Find Your Course Section -->
+      <div class="section-card">
+        <h2 class="section-heading">🔍 Find Your Course</h2>
+        <form method="get" action="/notes-feed" id="course-filter-form">
+          <!-- Hidden fields to preserve other filters -->
+          <input type="hidden" name="search" value="{{ search_query or '' }}">
+          <input type="hidden" name="author_filter" value="{{ author_filter or 'All' }}">
+          <input type="hidden" name="date_filter" value="{{ date_filter or 'All' }}">
+          <input type="hidden" name="sort_by" value="{{ sort_by or 'recent' }}">
+          
+          <div style="display: flex; gap: 16px; margin-top: 16px;">
+            <!-- Subject Dropdown -->
+            <select id="subject-select" name="subject" class="course-select">
+              <option value="">All Subjects</option>
             </select>
-
-            <!-- Filter by author -->
-            <select name="author_filter" onchange="this.form.submit()">
-              <option value="All" {% if author_filter == "All" %}selected{% endif %}>All Authors</option>
-              {% for a in authors %}
-              <option value="{{ a }}" {% if author_filter == a %}selected{% endif %}>{{ a }}</option>
-              {% endfor %}
+            
+            <!-- Number Dropdown -->
+            <select id="number-select" name="number" class="course-select">
+              <option value="">All Numbers</option>
             </select>
-
-            <!-- Filter by date -->
-            <select name="date_filter" onchange="this.form.submit()">
-              <option value="All" {% if date_filter == "All" %}selected{% endif %}>All Time</option>
-              <option value="Today" {% if date_filter == "Today" %}selected{% endif %}>Today</option>
-              <option value="Week" {% if date_filter == "Week" %}selected{% endif %}>This Week</option>
-              <option value="Month" {% if date_filter == "Month" %}selected{% endif %}>This Month</option>
-            </select>
-
-            <!-- Sort options -->
-            <select name="sort_by" onchange="this.form.submit()">
-              <option value="recent" {% if sort_by == "recent" %}selected{% endif %}>Most Recent</option>
-              <option value="oldest" {% if sort_by == "oldest" %}selected{% endif %}>Oldest First</option>
-              <option value="title" {% if sort_by == "title" %}selected{% endif %}>Title (A-Z)</option>
-              <option value="author" {% if sort_by == "author" %}selected{% endif %}>Author (A-Z)</option>
-            </select>
-
-            <!-- Note count -->
-            <div class="note-count">
-              {{ total }} notes
-            </div>
+            
+            <!-- Hidden field to store combined class value for backend -->
+            <input type="hidden" name="class_filter" id="class-filter-hidden" value="{{ selected_filter or 'All' }}">
           </div>
-
-          <!-- Row 2: Search bar -->
-          <div class="filter-row">
-            <input type="text" name="search" class="search-input" placeholder="🔍 Search notes..." value="{{ search_query or '' }}">
-            <button type="submit" class="btn-search">Search</button>
-          </div>
-
         </form>
+      </div>
+
+      <!-- Posted Notes Section -->
+      <div class="section-card">
+        <div class="section-header-row">
+          <h2 class="section-heading">📚 Posted Notes</h2>
+          
+          <div style="display: flex; gap: 12px; align-items: center;">
+            <!-- Note count -->
+            <div class="note-count">{{ total }} notes</div>
+            
+            <!-- Sort dropdown -->
+            <form method="get" action="/notes-feed" style="margin: 0;">
+              <!-- Preserve current filters -->
+              <input type="hidden" name="search" value="{{ search_query or '' }}">
+              <input type="hidden" name="class_filter" value="{{ selected_filter or 'All' }}">
+              <input type="hidden" name="author_filter" value="{{ author_filter or 'All' }}">
+              <input type="hidden" name="date_filter" value="{{ date_filter or 'All' }}">
+              
+              <select name="sort_by" onchange="this.form.submit()">
+                <option value="recent" {% if sort_by == "recent" %}selected{% endif %}>Most Recent</option>
+                <option value="oldest" {% if sort_by == "oldest" %}selected{% endif %}>Oldest First</option>
+                <option value="title" {% if sort_by == "title" %}selected{% endif %}>Title (A-Z)</option>
+                <option value="author" {% if sort_by == "author" %}selected{% endif %}>Author (A-Z)</option>
+              </select>
+            </form>
+          </div>
+        </div>
       </div>
    
       <!-- Notes Feed -->
@@ -558,34 +851,7 @@
           <div style="font-size: 14px; margin-top: 8px;">Try adjusting your search or filters.</div>
         </div>
       {% endif %}
-   
-      <!-- Create Note Form -->
-      <div class="create-section">
-        <div class="section-title">✍️ Create New Note</div>
 
-        <form method="POST" action="/notes-feed">
-          <div class="two">
-            <input type="text" name="author" placeholder="Your name (optional)">
-            <input type="text" name="title" placeholder="Note title">
-          </div>
-
-          <div style="margin-top: 16px;">
-            <select name="class">
-              {% for c in classes %}
-              <option value="{{ c }}">{{ c }}</option>
-              {% endfor %}
-            </select>
-          </div>
-
-          <div style="margin-top: 16px;">
-            <textarea name="body" placeholder="Write your note..." required></textarea>
-          </div>
-
-          <div style="margin-top: 20px; text-align: right;">
-            <button type="submit" class="btn-search">📝 Post Note</button>
-          </div>
-        </form>
-      </div>
     </div>
   </div>
 
@@ -622,5 +888,295 @@
       }
     }
   </script>
+
+  <script>
+    // ===== MODAL FUNCTIONS =====
+    
+    function openModal() {
+      const modal = document.getElementById('note-modal');
+      modal.classList.add('active');
+      document.body.style.overflow = 'hidden'; // Prevent background scrolling
+    }
+    
+    function closeModal() {
+      const modal = document.getElementById('note-modal');
+      modal.classList.remove('active');
+      document.body.style.overflow = ''; // Restore scrolling
+      
+      // Clear the form
+      const form = document.getElementById('create-note-form');
+      form.reset();
+    }
+    
+    // Close modal when clicking outside the modal content
+    document.addEventListener('DOMContentLoaded', function() {
+      const modal = document.getElementById('note-modal');
+      
+      modal.addEventListener('click', function(e) {
+        // If click is on the overlay (not the content box)
+        if (e.target === modal) {
+          closeModal();
+        }
+      });
+      
+      // Close modal with Escape key
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && modal.classList.contains('active')) {
+          closeModal();
+        }
+      });
+    });
+
+    // ===== COURSE FILTER LOGIC =====
+    
+    // Get CLASSES array from Flask template
+    const CLASSES = {{ classes | tojson }};
+    
+    // Parse classes into subjects and numbers
+    function parseClasses() {
+      const subjects = new Set();
+      const classesBySubject = {};
+      
+      CLASSES.forEach(cls => {
+        // Extract subject (letters) and number (digits)
+        // Example: "CS124" -> subject="CS", number="124"
+        const match = cls.match(/^([A-Z]+)(\d+)$/);
+        if (match) {
+          const subject = match[1];  // "CS"
+          const number = match[2];    // "124"
+          
+          subjects.add(subject);
+          
+          if (!classesBySubject[subject]) {
+            classesBySubject[subject] = [];
+          }
+          classesBySubject[subject].push(number);
+        }
+      });
+      
+      return {
+        subjects: Array.from(subjects).sort(),
+        classesBySubject: classesBySubject
+      };
+    }
+    
+    // Populate subject dropdown with unique subjects
+    function populateSubjects() {
+      const { subjects } = parseClasses();
+      const subjectSelect = document.getElementById('subject-select');
+      
+      // Get current filter to restore selection
+      const currentFilter = "{{ selected_filter }}";
+      let currentSubject = "";
+      
+      // Extract subject from current filter (e.g., "CS124" -> "CS")
+      if (currentFilter && currentFilter !== "All") {
+        const match = currentFilter.match(/^([A-Z]+)(\d+)$/);
+        if (match) {
+          currentSubject = match[1];
+        }
+      }
+      
+      // Clear existing options (except "All Subjects")
+      while (subjectSelect.options.length > 1) {
+        subjectSelect.remove(1);
+      }
+      
+      // Add each subject as an option
+      subjects.forEach(subject => {
+        const option = document.createElement('option');
+        option.value = subject;
+        option.textContent = subject;
+        
+        // Set as selected if it matches current filter
+        if (subject === currentSubject) {
+          option.selected = true;
+        }
+        
+        subjectSelect.appendChild(option);
+      });
+    }
+
+    // Update number dropdown when subject changes
+    function updateNumberDropdown(preserveSelection = false) {
+      const { classesBySubject } = parseClasses();
+      const subjectSelect = document.getElementById('subject-select');
+      const numberSelect = document.getElementById('number-select');
+      
+      const selectedSubject = subjectSelect.value;
+      
+      // Get current filter to restore selection
+      const currentFilter = "{{ selected_filter }}";
+      let currentNumber = "";
+      
+      if (preserveSelection && currentFilter && currentFilter !== "All") {
+        const match = currentFilter.match(/^([A-Z]+)(\d+)$/);
+        if (match) {
+          currentNumber = match[2];
+        }
+      }
+      
+      // Clear number dropdown
+      numberSelect.innerHTML = '<option value="">All Numbers</option>';
+      
+      if (selectedSubject) {
+        // Get numbers for selected subject
+        const numbers = classesBySubject[selectedSubject] || [];
+        numbers.sort((a, b) => parseInt(a) - parseInt(b));
+        
+        // Populate number dropdown
+        numbers.forEach(number => {
+          const option = document.createElement('option');
+          option.value = number;
+          option.textContent = number;
+          
+          // Set as selected if it matches current filter
+          if (number === currentNumber) {
+            option.selected = true;
+          }
+          
+          numberSelect.appendChild(option);
+        });
+      }
+    }
+    
+    // Update hidden field and submit form
+    function applyClassFilter() {
+      const subjectSelect = document.getElementById('subject-select');
+      const numberSelect = document.getElementById('number-select');
+      const hiddenInput = document.getElementById('class-filter-hidden');
+      const form = document.getElementById('course-filter-form');
+      
+      const selectedSubject = subjectSelect.value;
+      const selectedNumber = numberSelect.value;
+      
+      // Combine subject + number to create class filter
+      if (selectedSubject && selectedNumber) {
+        hiddenInput.value = selectedSubject + selectedNumber;  // e.g., "CS124"
+      } else if (selectedSubject) {
+        // If only subject selected, show all classes for that subject
+        hiddenInput.value = 'All';  // We'll handle this differently in a moment
+      } else {
+        hiddenInput.value = 'All';
+      }
+      
+      // Submit the form to apply filter
+      form.submit();
+    }
+
+    // Initialize dropdowns when page loads
+    let subjectChoice, numberChoice;
+    
+    document.addEventListener('DOMContentLoaded', function() {
+      // Populate subjects
+      populateSubjects();
+      
+      // Update numbers based on current selection (with preservation)
+      updateNumberDropdown(true);
+      
+      // Initialize Choices.js on subject dropdown
+      const subjectSelect = document.getElementById('subject-select');
+      subjectChoice = new Choices(subjectSelect, {
+        searchEnabled: true,
+        searchPlaceholderValue: 'Type to search subjects...',
+        itemSelectText: '',
+        shouldSort: false,
+        searchResultLimit: 20,
+        removeItemButton: false
+      });
+      
+      // Initialize Choices.js on number dropdown
+      const numberSelect = document.getElementById('number-select');
+      numberChoice = new Choices(numberSelect, {
+        searchEnabled: true,
+        searchPlaceholderValue: 'Type to search numbers...',
+        itemSelectText: '',
+        shouldSort: false,
+        searchResultLimit: 20,
+        removeItemButton: false
+      });
+      
+      // Add event listener to subject dropdown
+      subjectSelect.addEventListener('change', function() {
+        updateNumberDropdown(false);
+        
+        // Destroy and reinitialize number Choices.js to reflect new options
+        numberChoice.destroy();
+        numberChoice = new Choices(numberSelect, {
+          searchEnabled: true,
+          searchPlaceholderValue: 'Type to search numbers...',
+          itemSelectText: '',
+          shouldSort: false,
+          searchResultLimit: 20,
+          removeItemButton: false
+        });
+        
+        // If "All Subjects" selected, clear and submit
+        if (!this.value) {
+          document.getElementById('class-filter-hidden').value = 'All';
+          document.getElementById('course-filter-form').submit();
+        }
+      });
+      
+      // Add event listener to number dropdown
+      numberSelect.addEventListener('change', function() {
+        // If "All Numbers" selected with a subject, just submit
+        if (!this.value && subjectSelect.value) {
+          document.getElementById('class-filter-hidden').value = 'All';
+          document.getElementById('course-filter-form').submit();
+        } else {
+          applyClassFilter();
+        }
+      });
+    });
+    
+    // test code
+    console.log('Choices available?', typeof Choices !== 'undefined');
+  </script>
+
+
+<!-- ===== MODAL FOR CREATING NOTES ===== -->
+  <div id="note-modal" class="modal-overlay">
+    <div class="modal-content">
+      <!-- Modal Header -->
+      <div class="modal-header">
+        <h2 class="modal-title">✍️ Create New Note</h2>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      
+      <!-- Modal Body with Form -->
+      <div class="modal-body">
+        <form method="POST" action="/notes-feed" id="create-note-form">
+          <div class="two">
+            <input type="text" name="author" placeholder="Your name (optional)">
+            <input type="text" name="title" placeholder="Note title">
+          </div>
+
+          <div style="margin-top: 16px;">
+            <select name="class">
+              {% for c in classes %}
+              <option value="{{ c }}">{{ c }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div style="margin-top: 16px;">
+            <textarea name="body" placeholder="Write your note..." required></textarea>
+          </div>
+
+          <div style="margin-top: 20px; display: flex; gap: 12px; justify-content: flex-end;">
+            <button type="button" class="btn-small btn-cancel" onclick="closeModal()">Cancel</button>
+            <button type="submit" class="btn-search">📝 Post Note</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  
+
+</body>
+</html>
+
 </body>
 </html>
