@@ -23,3 +23,7 @@ uploads/
 
 # Project-specific
 CLAUDE.md
+
+# env file and personal learning guide
+.env
+LEARNING_GUIDE.md
