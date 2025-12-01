@@ -22,6 +22,7 @@ def _get_filtered_notes(args):
     selected_filter = args.get("class_filter", "All")
     search_query = args.get("search", "").strip().lower()
     author_filter = args.get("author_filter", "All")
+    tag_filter = args.get("tag_filter", "All")
     date_filter = args.get("date_filter", "All")
     sort_by = args.get("sort_by", "recent")
 
@@ -39,6 +40,11 @@ def _get_filtered_notes(args):
             if search_query in n["title"].lower() or search_query in n["body"].lower()
         ]
 
+    # --- Filter by tag (if provided) ---
+    if tag_filter and tag_filter != "All":
+        tf = tag_filter.lower()
+        filtered = [n for n in filtered if any(t.lower() == tf for t in n.get("tags", []))]
+
     if date_filter and date_filter != "All":
         now = datetime.now()
         if date_filter == "Today":
@@ -49,6 +55,7 @@ def _get_filtered_notes(args):
             cutoff = now - timedelta(days=30)
         else:
             cutoff = None
+        tag_filter = args.get("tag_filter", "All")
 
         if cutoff:
             filtered = [
@@ -95,6 +102,13 @@ def index():
         title = request.form.get("title", "").strip() or "Untitled"
         body = request.form.get("body", "").strip()
         selected_class = request.form.get("class", "General")
+        # parse tags from comma-separated input; normalize by trimming
+        raw_tags = request.form.get("tags", "")
+        tags = []
+        if raw_tags:
+            # split on comma and also accept spaces; keep original casing trimmed
+            parts = [p.strip() for p in raw_tags.replace('#', '').split(',')]
+            tags = [p for p in parts if p]
         if body:
             NOTES.append({
                 "id": next_id(),
@@ -105,7 +119,8 @@ def index():
                 "created": datetime.now().strftime("%Y-%m-%d %H:%M"),
                 # initialize social fields for future sorting/features
                 "likes": 0,
-                "comments": []  # list of comment dicts: {author, body, created}
+                "comments": [],  # list of comment dicts: {author, body, created}
+                "tags": tags,
             })
         # returns index.html (the main page)
         return redirect(url_for("index"))
@@ -114,6 +129,7 @@ def index():
     selected_filter = request.args.get("class_filter", "All")
     search_query = request.args.get("search", "").strip().lower()
     author_filter = request.args.get("author_filter", "All")
+    tag_filter = request.args.get("tag_filter", "All")
     date_filter = request.args.get("date_filter", "All")
     sort_by = request.args.get("sort_by", "recent")
 
@@ -141,6 +157,17 @@ def index():
     # This creates a dropdown showing all authors who have posted notes
     unique_authors = sorted(list(set([n["author"] for n in NOTES])))
 
+    # Build tag cloud (tag -> count)
+    tag_counts = {}
+    for n in NOTES:
+        for t in n.get("tags", []):
+            key = t.strip()
+            if not key:
+                continue
+            tag_counts[key] = tag_counts.get(key, 0) + 1
+    # Sorted list of (tag, count) descending
+    tags_sorted = sorted(tag_counts.items(), key=lambda x: x[1], reverse=True)
+
     # ===== STEP 5: Send everything to the template to display =====
     return render_template(
         "index.html",
@@ -148,13 +175,15 @@ def index():
         page=page,
         has_more=has_more,
         total=total,
+        tag_filter=tag_filter,
         classes=CLASSES,  # List of all available classes
         selected_filter=selected_filter,  # Currently selected class filter
         search_query=search_query,  # Current search term
         author_filter=author_filter,  # Currently selected author filter
         date_filter=date_filter,  # Currently selected date range
         sort_by=sort_by,  # Current sort option
-        authors=unique_authors  # List of all authors for the dropdown
+        authors=unique_authors,  # List of all authors for the dropdown
+        tags=tags_sorted,
     )
 
 
@@ -230,6 +259,11 @@ def edit_note(note_id):
             note["body"] = request.form.get("body", "").strip() or note["body"]
             note["author"] = request.form.get("author", "").strip() or note["author"]
             note["class"] = request.form.get("class", note["class"])
+            # update tags if provided (comma-separated)
+            raw_tags = request.form.get("tags")
+            if raw_tags is not None:
+                parts = [p.strip() for p in raw_tags.replace('#', '').split(',')]
+                note["tags"] = [p for p in parts if p]
             break
 
     # Redirect back to the main page to show the updated note
