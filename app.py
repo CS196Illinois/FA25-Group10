@@ -64,6 +64,19 @@ def _get_filtered_notes(args):
         filtered = sorted(filtered, key=lambda n: n["title"].lower())
     elif sort_by == "author":
         filtered = sorted(filtered, key=lambda n: n["author"].lower())
+    elif sort_by == "most_liked":
+        # Sort by number of likes (descending)
+        filtered = sorted(filtered, key=lambda n: n.get("likes", 0), reverse=True)
+    elif sort_by == "most_commented":
+        # Sort by number of comments (descending)
+        filtered = sorted(filtered, key=lambda n: len(n.get("comments", [])), reverse=True)
+    elif sort_by == "popular":
+        # Popularity: primarily by comments, then by likes
+        filtered = sorted(
+            filtered,
+            key=lambda n: (len(n.get("comments", [])), n.get("likes", 0), n.get("id", 0)),
+            reverse=True,
+        )
 
     return filtered
 
@@ -89,7 +102,10 @@ def index():
                 "title": title,
                 "body": body,
                 "class": selected_class,
-                "created": datetime.now().strftime("%Y-%m-%d %H:%M")
+                "created": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                # initialize social fields for future sorting/features
+                "likes": 0,
+                "comments": []  # list of comment dicts: {author, body, created}
             })
         # returns index.html (the main page)
         return redirect(url_for("index"))
@@ -169,6 +185,37 @@ def notes_endpoint():
     # Render only the notes HTML fragment
     html = render_template("notes_fragment.html", notes=notes_page, classes=CLASSES)
     return jsonify({"html": html, "has_more": has_more})
+
+
+# Endpoint to increment likes for a note
+@app.route("/like/<int:note_id>", methods=["POST"])
+def like_note(note_id):
+    for note in NOTES:
+        if note["id"] == note_id:
+            note["likes"] = note.get("likes", 0) + 1
+            break
+    # Redirect back to the referring page if available
+    return redirect(request.referrer or url_for("index"))
+
+
+# Endpoint to add a comment to a note
+@app.route("/comment/<int:note_id>", methods=["POST"])
+def add_comment(note_id):
+    author = request.form.get("comment_author", "Anonymous").strip() or "Anonymous"
+    body = request.form.get("comment_body", "").strip()
+    if not body:
+        return redirect(request.referrer or url_for("index"))
+
+    for note in NOTES:
+        if note["id"] == note_id:
+            note.setdefault("comments", []).append({
+                "author": author,
+                "body": body,
+                "created": datetime.now().strftime("%Y-%m-%d %H:%M")
+            })
+            break
+
+    return redirect(request.referrer or url_for("index"))
 
 # ===== EDIT NOTE ROUTE =====
 # Handles updating an existing note
