@@ -1,8 +1,3 @@
-// ============================================
-// THEME TOGGLE FUNCTIONALITY
-// Handles light/dark mode switching with persistence
-// ============================================
-
 (function() {
     'use strict';
     
