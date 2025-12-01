@@ -14,6 +14,12 @@
           <a href="/?tag_filter={{ tag }}" class="meta-tag" style="text-decoration:none;">#{{ tag }}</a>
         {% endfor %}
       {% endif %}
+      {# Hashtags badges on note #}
+      {% if n.hashtags %}
+        {% for ht in n.hashtags %}
+          <a href="/?tag_filter={{ ht }}" class="meta-tag" style="text-decoration:none; background:rgba(245,101,101,0.2); color:#c53030;">#{{ ht }}</a>
+        {% endfor %}
+      {% endif %}
     </div>
     <div class="note-body">{{ n.body }}</div>
   </div>

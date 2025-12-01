@@ -109,6 +109,16 @@ def index():
             # split on comma and also accept spaces; keep original casing trimmed
             parts = [p.strip() for p in raw_tags.replace('#', '').split(',')]
             tags = [p for p in parts if p]
+        import re
+        def extract_hashtags(text):
+            return [tag[1:] for tag in re.findall(r"#[\w-]+", text)]
+
+        hashtags = set()
+        hashtags.update(extract_hashtags(body))
+        hashtags.update([t for t in tags if t.startswith('#')])
+        hashtags.update([t for t in tags if t])
+        hashtags = [h.lstrip('#') for h in hashtags if h]
+
         if body:
             NOTES.append({
                 "id": next_id(),
@@ -121,6 +131,7 @@ def index():
                 "likes": 0,
                 "comments": [],  # list of comment dicts: {author, body, created}
                 "tags": tags,
+                "hashtags": hashtags,
             })
         # returns index.html (the main page)
         return redirect(url_for("index"))
@@ -262,8 +273,17 @@ def edit_note(note_id):
             # update tags if provided (comma-separated)
             raw_tags = request.form.get("tags")
             if raw_tags is not None:
-                parts = [p.strip() for p in raw_tags.replace('#', '').split(',')]
+                parts = [p.strip() for p in raw_tags.split(',')]
                 note["tags"] = [p for p in parts if p]
+            # update hashtags from body and tags
+            import re
+            def extract_hashtags(text):
+                return [tag[1:] for tag in re.findall(r"#[\w-]+", text)]
+            hashtags = set()
+            hashtags.update(extract_hashtags(note["body"]))
+            hashtags.update([t for t in note["tags"] if t.startswith('#')])
+            hashtags.update([t for t in note["tags"] if t])
+            note["hashtags"] = [h.lstrip('#') for h in hashtags if h]
             break
 
     # Redirect back to the main page to show the updated note
