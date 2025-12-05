@@ -1,5 +1,5 @@
 from dotenv import load_dotenv
-from flask import Flask, render_template, request, redirect, url_for, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, send_from_directory, jsonify
 from datetime import datetime, timedelta
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
@@ -7,6 +7,7 @@ from supabase import create_client, Client
 import os
 import uuid
 from functools import wraps
+import re
 
 # FLASK APP CONFIGURATION
 # Load environment variables from .env file
@@ -42,6 +43,9 @@ db = SQLAlchemy(app)
 # List of available class codes for the dropdown filter
 CLASSES = ["CS124", "CS128", "CS173", "MATH221", "MATH231", "ENG100", "CS100", "RHET105", "PHY211", "PHY212"]
 
+# PAGE_SIZE controls how many notes are returned per page for pagination.
+PAGE_SIZE = 5
+
 
 # DATABASE MODELS
 # These classes define the structure of our database tables
@@ -49,7 +53,7 @@ CLASSES = ["CS124", "CS128", "CS173", "MATH221", "MATH231", "ENG100", "CS100", "
 class Note(db.Model):
     """
     Note model - represents a single note in the database
-    Each note can have multiple file attachments
+    Each note can have multiple file attachments, likes, and comments
     """
     # Primary key - unique identifier for each note (auto-increments)
     id = db.Column(db.Integer, primary_key=True)
@@ -69,6 +73,9 @@ class Note(db.Model):
     # Foreign key linking note to Supabase auth user (UUID string)
     user_id = db.Column(db.String(36), nullable=False)
 
+    # Tags for the note (stored as comma-separated string)
+    tags = db.Column(db.Text, nullable=True)
+
     # When this note was created (automatically set to current time)
     created = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
@@ -77,9 +84,34 @@ class Note(db.Model):
     # 'cascade' means if we delete a note, all its attachments are deleted too
     attachments = db.relationship('Attachment', backref='note', lazy=True, cascade='all, delete-orphan')
 
+    # Relationship: One note can have many likes
+    likes = db.relationship('Like', backref='note', lazy=True, cascade='all, delete-orphan')
+
+    # Relationship: One note can have many comments
+    comments = db.relationship('Comment', backref='note', lazy=True, cascade='all, delete-orphan')
+
     def __repr__(self):
         """String representation for debugging"""
         return f'<Note {self.id}: {self.title}>'
+
+    def get_tags_list(self):
+        """Return tags as a list"""
+        if not self.tags:
+            return []
+        return [tag.strip() for tag in self.tags.split(',') if tag.strip()]
+
+    def get_hashtags(self):
+        """Extract hashtags from body and tags"""
+        hashtags = set()
+        # Extract from body
+        hashtags.update(extract_hashtags(self.body))
+        # Extract from tags
+        for tag in self.get_tags_list():
+            if tag.startswith('#'):
+                hashtags.add(tag[1:])
+            else:
+                hashtags.add(tag)
+        return list(hashtags)
 
 
 class Attachment(db.Model):
@@ -108,6 +140,51 @@ class Attachment(db.Model):
     def __repr__(self):
         """String representation for debugging"""
         return f'<Attachment {self.id}: {self.original_filename}>'
+
+
+class Like(db.Model):
+    """
+    Like model - represents a user liking a note
+    Prevents duplicate likes from the same user
+    """
+    # Primary key
+    id = db.Column(db.Integer, primary_key=True)
+
+    # Foreign key - links to a specific note
+    note_id = db.Column(db.Integer, db.ForeignKey('note.id'), nullable=False)
+
+    # User ID who liked (from Supabase auth, or "Anonymous")
+    user_id = db.Column(db.String(36), nullable=False)
+
+    # When this like was created
+    created = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<Like {self.id}: Note {self.note_id} by User {self.user_id}>'
+
+
+class Comment(db.Model):
+    """
+    Comment model - represents a comment on a note
+    """
+    # Primary key
+    id = db.Column(db.Integer, primary_key=True)
+
+    # Foreign key - links to a specific note
+    note_id = db.Column(db.Integer, db.ForeignKey('note.id'), nullable=False)
+
+    # Comment author
+    author = db.Column(db.String(100), nullable=False, default="Anonymous")
+
+    # Comment body/content
+    body = db.Column(db.Text, nullable=False)
+
+    # When this comment was created
+    created = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<Comment {self.id}: {self.author} on Note {self.note_id}>'
+
 
 # AUTHENTICATION HELPER FUNCTIONS
 
@@ -189,6 +266,7 @@ def get_current_user():
         return None
 
 # HELPER FUNCTIONS
+
 def allowed_file(filename):
     """
     Check if a file has an allowed extension
@@ -200,11 +278,94 @@ def allowed_file(filename):
     # Check if filename has a dot AND the extension (after the dot) is allowed
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+
+def extract_hashtags(text):
+    """Extract hashtags from text (e.g., #python, #flask)"""
+    return [tag[1:] for tag in re.findall(r"#[\w-]+", text)]
+
+
+def _get_filtered_notes(args):
+    """Return the filtered & sorted notes (full list) according to query args.
+
+    This helper performs filtering and sorting for notes based on various criteria.
+    Used by both the main index route and the pagination endpoint.
+    """
+    selected_filter = args.get("class_filter", "All")
+    search_query = args.get("search", "").strip().lower()
+    author_filter = args.get("author_filter", "All")
+    tag_filter = args.get("tag_filter", "All")
+    date_filter = args.get("date_filter", "All")
+    sort_by = args.get("sort_by", "recent")
+
+    # Start with a database query for all notes
+    query = Note.query
+
+    # --- Filter by class (e.g., only show CS124 notes) ---
+    if selected_filter and selected_filter != "All":
+        query = query.filter(Note.class_code == selected_filter)
+
+    # --- Filter by author (e.g., only show notes from "John") ---
+    if author_filter and author_filter != "All":
+        query = query.filter(Note.author == author_filter)
+
+    # --- Filter by search term (looks in both title and body) ---
+    if search_query:
+        query = query.filter(
+            (Note.title.ilike(f"%{search_query}%")) |
+            (Note.body.ilike(f"%{search_query}%"))
+        )
+
+    # --- Filter by tag (if provided) ---
+    if tag_filter and tag_filter != "All":
+        # Search for the tag in the tags field
+        query = query.filter(Note.tags.ilike(f"%{tag_filter}%"))
+
+    # --- Filter by date (Today, This Week, This Month, or All Time) ---
+    if date_filter and date_filter != "All":
+        now = datetime.now()
+
+        # Calculate the cutoff date based on selected filter
+        if date_filter == "Today":
+            cutoff = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        elif date_filter == "Week":
+            cutoff = now - timedelta(days=7)
+        elif date_filter == "Month":
+            cutoff = now - timedelta(days=30)
+        else:
+            cutoff = None
+
+        if cutoff:
+            query = query.filter(Note.created >= cutoff)
+
+    # STEP 3: Sort the filtered results
+    if sort_by == "recent":
+        query = query.order_by(Note.id.desc())
+    elif sort_by == "oldest":
+        query = query.order_by(Note.id.asc())
+    elif sort_by == "title":
+        query = query.order_by(Note.title.asc())
+    elif sort_by == "author":
+        query = query.order_by(Note.author.asc())
+    elif sort_by == "most_liked":
+        # Sort by number of likes (using subquery to count)
+        query = query.outerjoin(Like).group_by(Note.id).order_by(db.func.count(Like.id).desc())
+    elif sort_by == "most_commented":
+        # Sort by number of comments (using subquery to count)
+        query = query.outerjoin(Comment).group_by(Note.id).order_by(db.func.count(Comment.id).desc())
+    elif sort_by == "popular":
+        # Popularity: primarily by comments, then by likes
+        query = query.outerjoin(Comment).outerjoin(Like).group_by(Note.id).order_by(
+            db.func.count(Comment.id).desc(),
+            db.func.count(Like.id).desc()
+        )
+
+    return query.all()
+
+
 # ROUTES
 # These functions handle different URLs and user requests
 
 # Main page route - handles both displaying notes (GET) and creating new notes (POST)
-# No @login_required decorator - anonymous users can view notes
 @app.route("/", methods=["GET", "POST"])
 def index():
     print("===== INDEX ROUTE CALLED =====")
@@ -225,6 +386,21 @@ def index():
         body = request.form.get("body", "").strip()
         selected_class = request.form.get("class", "General")
 
+        # Parse tags from comma-separated input
+        raw_tags = request.form.get("tags", "")
+        tags_list = []
+        if raw_tags:
+            # Split on comma and remove hashtag symbols if present
+            parts = [p.strip() for p in raw_tags.replace('#', '').split(',')]
+            tags_list = [p for p in parts if p]
+
+        # Extract hashtags from body
+        hashtags = set(extract_hashtags(body))
+        # Combine with tags
+        hashtags.update(tags_list)
+        # Store as comma-separated string
+        tags_str = ','.join(hashtags) if hashtags else ''
+
         # Only create note if body is not empty
         if body:
             # Create a new Note object with the form data
@@ -233,7 +409,8 @@ def index():
                 title=title,
                 body=body,
                 class_code=selected_class,
-                user_id=current_user.id  # Link to Supabase auth user
+                user_id=current_user.id,  # Link to Supabase auth user
+                tags=tags_str
             )
 
             # Add the note to the database session (prepares it to be saved)
@@ -282,91 +459,61 @@ def index():
 
         # Redirect back to the main page to show the new note
         return redirect(url_for("index"))
-    
+
     # HANDLING NOTE DISPLAY (GET REQUEST)
     # This runs when user visits the page to view notes
 
-    # STEP 1: Get all filter parameters from the URL
-    # These are passed as query parameters when user submits the filter form
-    selected_filter = request.args.get("class_filter", "All")  # Which class to show
-    search_query = request.args.get("search", "").strip().lower()  # Search term
-    author_filter = request.args.get("author_filter", "All")  # Which author to show
-    date_filter = request.args.get("date_filter", "All")  # Time range filter
-    sort_by = request.args.get("sort_by", "recent")  # How to sort the results
+    # Get filter parameters from the URL
+    selected_filter = request.args.get("class_filter", "All")
+    search_query = request.args.get("search", "").strip().lower()
+    author_filter = request.args.get("author_filter", "All")
+    tag_filter = request.args.get("tag_filter", "All")
+    date_filter = request.args.get("date_filter", "All")
+    sort_by = request.args.get("sort_by", "recent")
 
-    # STEP 2: Start with a database query for all notes
-    # Note.query is a SQLAlchemy query object that we can filter and sort
-    query = Note.query
+    # Get filtered notes using the helper function
+    filtered_notes = _get_filtered_notes(request.args)
 
-    # --- Filter by class (e.g., only show CS124 notes) ---
-    if selected_filter and selected_filter != "All":
-        # Use SQLAlchemy filter to only get notes matching the selected class
-        query = query.filter(Note.class_code == selected_filter)
+    # Pagination
+    try:
+        page = int(request.args.get("page", 1))
+        if page < 1:
+            page = 1
+    except ValueError:
+        page = 1
 
-    # --- Filter by author (e.g., only show notes from "John") ---
-    if author_filter and author_filter != "All":
-        # Filter to only show notes from the selected author
-        query = query.filter(Note.author == author_filter)
+    total = len(filtered_notes)
+    start = (page - 1) * PAGE_SIZE
+    end = start + PAGE_SIZE
+    notes_page = filtered_notes[start:end]
+    has_more = end < total
 
-    # --- Filter by search term (looks in both title and body) ---
-    if search_query:
-        # Use SQL LIKE operator to search for the query in title OR body
-        # The | operator means OR in SQLAlchemy
-        query = query.filter(
-            (Note.title.ilike(f"%{search_query}%")) |
-            (Note.body.ilike(f"%{search_query}%"))
-        )
-
-    # --- Filter by date (Today, This Week, This Month, or All Time) ---
-    if date_filter and date_filter != "All":
-        now = datetime.now()
-
-        # Calculate the cutoff date based on selected filter
-        if date_filter == "Today":
-            # Only show notes from today
-            cutoff = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        elif date_filter == "Week":
-            # Show notes from the last 7 days
-            cutoff = now - timedelta(days=7)
-        elif date_filter == "Month":
-            # Show notes from the last 30 days
-            cutoff = now - timedelta(days=30)
-        else:
-            cutoff = None
-
-        # If we have a cutoff date, filter notes created after that date
-        if cutoff:
-            query = query.filter(Note.created >= cutoff)
-
-    # STEP 3: Sort the filtered results
-    # Different sorting options to organize notes
-    if sort_by == "recent":
-        # Most recent notes first (default) - sort by ID descending
-        query = query.order_by(Note.id.desc())
-    elif sort_by == "oldest":
-        # Oldest notes first - sort by ID ascending
-        query = query.order_by(Note.id.asc())
-    elif sort_by == "title":
-        # Alphabetical by title (A-Z)
-        query = query.order_by(Note.title.asc())
-    elif sort_by == "author":
-        # Alphabetical by author name (A-Z)
-        query = query.order_by(Note.author.asc())
-
-    # Execute the query to get the actual list of notes
-    filtered_notes = query.all()
-
-    # STEP 4: Get list of unique authors for the author filter dropdown
-    # Query the database to get all distinct author names
+    # Get list of unique authors for the author filter dropdown
     unique_authors = sorted([author[0] for author in db.session.query(Note.author).distinct().all()])
 
-    # STEP 5: Get current user from Supabase
+    # Build tag cloud (tag -> count)
+    tag_counts = {}
+    all_notes = Note.query.all()
+    for n in all_notes:
+        for t in n.get_tags_list():
+            key = t.strip()
+            if not key:
+                continue
+            tag_counts[key] = tag_counts.get(key, 0) + 1
+    # Sorted list of (tag, count) descending
+    tags_sorted = sorted(tag_counts.items(), key=lambda x: x[1], reverse=True)
+
+    # Get current user from Supabase
     current_user = get_current_user()
 
-    # STEP 6: Send everything to the template to display
+    # Send everything to the template to display
     return render_template(
         "index.html",
-        notes=filtered_notes,  # The filtered and sorted notes to display
+        notes=notes_page,  # The paginated notes to display
+        page=page,
+        has_more=has_more,
+        total=total,
+        tag_filter=tag_filter,
         classes=CLASSES,  # List of all available classes
         selected_filter=selected_filter,  # Currently selected class filter
         search_query=search_query,  # Current search term
@@ -374,8 +521,84 @@ def index():
         date_filter=date_filter,  # Currently selected date range
         sort_by=sort_by,  # Current sort option
         authors=unique_authors,  # List of all authors for the dropdown
-        current_user=current_user  # Current Supabase user
+        current_user=current_user,  # Current Supabase user
+        tags=tags_sorted,  # Tag cloud data
     )
+
+
+@app.route("/notes")
+def notes_endpoint():
+    """Return a page of notes as JSON (HTML fragment + has_more flag).
+
+    This endpoint supports the client-side "Load More" UI. It accepts the same
+    filter/sort query parameters as the main route plus a page parameter.
+    """
+    filtered_notes = _get_filtered_notes(request.args)
+    try:
+        page = int(request.args.get("page", 1))
+        if page < 1:
+            page = 1
+    except ValueError:
+        page = 1
+
+    total = len(filtered_notes)
+    start = (page - 1) * PAGE_SIZE
+    end = start + PAGE_SIZE
+    notes_page = filtered_notes[start:end]
+    has_more = end < total
+
+    # Get current user from Supabase
+    current_user = get_current_user()
+
+    # Render only the notes HTML fragment
+    html = render_template("notes_fragment.html", notes=notes_page, classes=CLASSES, current_user=current_user)
+    return jsonify({"html": html, "has_more": has_more})
+
+
+# Endpoint to increment likes for a note
+@app.route("/like/<int:note_id>", methods=["POST"])
+def like_note(note_id):
+    """Add a like to a note. Prevents duplicate likes from the same user."""
+    # Get current user (or use "Anonymous" if not logged in)
+    current_user = get_current_user()
+    user_id = current_user.id if current_user else "Anonymous"
+
+    # Check if user already liked this note
+    existing_like = Like.query.filter_by(note_id=note_id, user_id=user_id).first()
+
+    if not existing_like:
+        # Create a new like
+        new_like = Like(note_id=note_id, user_id=user_id)
+        db.session.add(new_like)
+        db.session.commit()
+
+    # Redirect back to the referring page
+    return redirect(request.referrer or url_for("index"))
+
+
+# Endpoint to add a comment to a note
+@app.route("/comment/<int:note_id>", methods=["POST"])
+def add_comment(note_id):
+    """Add a comment to a note."""
+    # Get current user (or use form input for anonymous)
+    current_user = get_current_user()
+    if current_user:
+        author = current_user.email
+    else:
+        author = request.form.get("comment_author", "Anonymous").strip() or "Anonymous"
+
+    body = request.form.get("comment_body", "").strip()
+
+    if not body:
+        return redirect(request.referrer or url_for("index"))
+
+    # Create a new comment
+    new_comment = Comment(note_id=note_id, author=author, body=body)
+    db.session.add(new_comment)
+    db.session.commit()
+
+    return redirect(request.referrer or url_for("index"))
+
 
 # EDIT NOTE ROUTE
 # Handles updating an existing note
@@ -396,18 +619,25 @@ def edit_note(note_id):
         return "Unauthorized: You don't have permission to edit this note", 403
 
     # Update the note's fields with new data from the form
-    # Use .get() with fallback to preserve original values if field is empty
     note.title = request.form.get("title", "").strip() or note.title
     note.body = request.form.get("body", "").strip() or note.body
     note.author = request.form.get("author", "").strip() or note.author
     note.class_code = request.form.get("class", note.class_code)
 
+    # Update tags if provided
+    raw_tags = request.form.get("tags")
+    if raw_tags is not None:
+        parts = [p.strip() for p in raw_tags.replace('#', '').split(',')]
+        tags_list = [p for p in parts if p]
+        # Extract hashtags from body
+        hashtags = set(extract_hashtags(note.body))
+        hashtags.update(tags_list)
+        note.tags = ','.join(hashtags) if hashtags else ''
+
     # HANDLE ATTACHMENT DELETION
-    # Get list of attachment IDs to delete (if any checkboxes were checked)
     attachments_to_delete = request.form.getlist("delete_attachments")
     if attachments_to_delete:
         for attachment_id in attachments_to_delete:
-            # Find the attachment in the database
             attachment = Attachment.query.get(int(attachment_id))
             if attachment and attachment.note_id == note_id:
                 # Delete the file from the filesystem
@@ -418,21 +648,17 @@ def edit_note(note_id):
                 db.session.delete(attachment)
 
     # HANDLE NEW ATTACHMENT UPLOADS
-    # Check if any new files were uploaded
     if 'attachments' in request.files:
         files = request.files.getlist('attachments')
         for file in files:
             if file and file.filename and allowed_file(file.filename):
-                # Secure the filename
                 original_filename = secure_filename(file.filename)
                 file_ext = original_filename.rsplit('.', 1)[1].lower()
                 unique_filename = f"{uuid.uuid4()}_{original_filename}"
 
-                # Save the file
                 file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
                 file.save(file_path)
 
-                # Create attachment record
                 new_attachment = Attachment(
                     note_id=note.id,
                     filename=unique_filename,
@@ -475,12 +701,13 @@ def delete_note(note_id):
             os.remove(file_path)
 
     # Delete the note from the database
-    # The cascade relationship will automatically delete all attachment records
+    # The cascade relationship will automatically delete all attachment, like, and comment records
     db.session.delete(note)
     db.session.commit()
 
     # Redirect back to the main page
     return redirect(url_for("index"))
+
 
 # AUTHENTICATION ROUTES
 @app.route("/signup", methods=["GET", "POST"])
@@ -501,7 +728,6 @@ def signup():
 
         try:
             # Sign up with Supabase Auth
-            # Note: If email confirmation is enabled in Supabase, you'll need to verify email
             response = supabase.auth.sign_up({
                 "email": email,
                 "password": password,
@@ -598,7 +824,6 @@ def forgot_password():
 
         try:
             # Request password reset from Supabase
-            # Specify redirect URL so the email link goes to our reset password page
             supabase.auth.reset_password_email(
                 email,
                 {
@@ -730,7 +955,6 @@ def change_password():
         })
 
         # Update to new password using the admin API
-        # We need to set the access token in the auth client first
         supabase.auth.set_session(access_token, verify_response.session.refresh_token)
         supabase.auth.update_user({"password": new_password})
 
@@ -751,6 +975,155 @@ def change_password():
         return render_template("profile.html", user=current_user, notes=user_notes,
                              password_error=error_msg)
 
+
+# AIDEN'S NEW ROUTES - AI Summarizer and Home
+
+@app.route("/home")
+def home():
+    """Home page route (Aiden's feature)"""
+    return render_template("homev3.html")
+
+@app.route("/summarizer")
+def summarizer():
+    """AI Summarizer page route (Aiden's feature)"""
+    return render_template("summarizer.html")
+
+@app.route("/api/summarize", methods=["POST"])
+def summarize():
+    """API endpoint for AI text summarization (Aiden's feature)"""
+    try:
+        data = request.get_json()
+        notes = data.get("notes", "").strip()
+
+        if not notes:
+            return jsonify({"error": "No notes provided"}), 400
+
+        # Simple extractive summarization (free, no API needed)
+        # Split into sentences more carefully to avoid splitting on decimals
+
+        # Replace common abbreviations and decimals temporarily
+        text = notes
+        text = re.sub(r'(\d)\.(\d)', r'\1DECIMAL\2', text)  # Protect decimals like 43.0
+        text = re.sub(r'\b(Dr|Mr|Mrs|Ms|Prof|Sr|Jr|vs|etc|i\.e|e\.g)\.', r'\1PERIOD', text, flags=re.IGNORECASE)
+
+        # Now split on sentence boundaries
+        sentences = re.split(r'[.!?]+\s+', text)
+
+        # Restore the protected patterns
+        sentences = [s.replace('DECIMAL', '.').replace('PERIOD', '.').strip()
+                    for s in sentences if s.strip() and len(s.strip()) > 15]
+
+        if len(sentences) == 0:
+            return jsonify({"error": "Could not parse text into sentences"}), 400
+
+        # If text is already short, return as-is
+        if len(notes) < 200:
+            return jsonify({"summary": notes})
+
+        # Score sentences based on various factors
+        scored_sentences = []
+        seen_phrases = set()
+
+        for idx, sentence in enumerate(sentences):
+            score = 0
+            sentence_lower = sentence.lower()
+
+            # Longer sentences (but not too long) tend to be more informative
+            length = len(sentence.split())
+            if 15 <= length <= 35:
+                score += 3
+            elif 10 <= length <= 50:
+                score += 2
+            elif length > 50:
+                score += 1
+
+            # Position matters: first few sentences often introduce topic
+            if idx < 3:
+                score += 4
+            # Last sentence often has conclusion
+            elif idx == len(sentences) - 1:
+                score += 2
+
+            # Sentences with data/numbers are valuable
+            if re.search(r'\d+\.?\d*%|\$\d+|USD \d+|\d+\.\d+', sentence):
+                score += 4
+
+            # Sentences with keywords like "important", "key", "main" are valuable
+            important_words = ['important', 'key', 'main', 'significant', 'primary',
+                             'critical', 'essential', 'fundamental', 'major', 'conclude',
+                             'expected', 'projected', 'growth', 'market size', 'cagr', 'forecast']
+            for word in important_words:
+                if word in sentence_lower:
+                    score += 2
+                    break
+
+            # Penalize repetitive phrases
+            repetitive_phrases = ['dominated the global market in 2022 and accounted',
+                                'accounted for a revenue share', 'segment accounted for',
+                                'segment dominated']
+            for phrase in repetitive_phrases:
+                if phrase in sentence_lower:
+                    score -= 3
+                    break
+
+            # Avoid very short or likely metadata sentences
+            if length < 8 or any(x in sentence_lower for x in ['copyright', 'login', 'sign up', 'home', 'logo', 'click here', 'download free sample', 'to learn more']):
+                score -= 10
+
+            # Penalize if very similar to already selected sentences
+            sentence_key = ' '.join(sentence_lower.split()[:5])  # First 5 words
+            if sentence_key in seen_phrases:
+                score -= 4
+            seen_phrases.add(sentence_key)
+
+            scored_sentences.append((score, sentence, idx))
+
+        # Sort by score and take top sentences
+        scored_sentences.sort(reverse=True, key=lambda x: x[0])
+
+        # Make summary length proportional to input - aim for 20-30% of original sentences
+        if len(sentences) <= 5:
+            num_sentences = max(2, len(sentences) - 2)  # Keep most if very short
+        elif len(sentences) <= 15:
+            num_sentences = max(3, int(len(sentences) * 0.3))  # 30% for medium text
+        else:
+            num_sentences = max(4, min(8, int(len(sentences) * 0.25)))  # 25% for longer text, cap at 8
+
+        top_sentences = scored_sentences[:num_sentences]
+
+        # Re-sort by original position to maintain flow
+        top_sentences.sort(key=lambda x: x[2])
+
+        # Build summary with formatting - each sentence on its own line or bullet
+        summary_parts = []
+        for _, sentence, _ in top_sentences:
+            sentence = sentence.strip()
+            if not sentence.endswith(('.', '!', '?')):
+                sentence += '.'
+            summary_parts.append(sentence)
+
+        # Format with bullet points for better readability
+        formatted_parts = ['• ' + part for part in summary_parts]
+        summary_text = '\n'.join(formatted_parts)
+
+        # Only enforce max length if summary is unreasonably long
+        original_length = len(notes)
+        if len(summary_text) > original_length * 0.9:
+            # Summary is too close to original, cut more aggressively
+            target_length = int(original_length * 0.6)
+            truncated = summary_text[:target_length]
+            last_period = max(truncated.rfind('.'), truncated.rfind('!'), truncated.rfind('?'))
+            if last_period > target_length * 0.5:
+                summary_text = truncated[:last_period + 1]
+            else:
+                summary_text = truncated + "..."
+
+        return jsonify({"summary": summary_text})
+
+    except Exception as e:
+        return jsonify({"error": f"An error occurred: {str(e)}"}), 500
+
+
 # FILE DOWNLOAD ROUTE
 # Handles secure file downloads for attachments
 @app.route("/download/<int:attachment_id>")
@@ -759,13 +1132,10 @@ def download_file(attachment_id):
     attachment = Attachment.query.get_or_404(attachment_id)
 
     # Security check: ensure the file path doesn't contain directory traversal attempts
-    # The secure_filename function already prevented this during upload, but double-check
     if '..' in attachment.filename or attachment.filename.startswith('/'):
         return "Invalid file path", 400
 
     # Send the file from the uploads directory
-    # as_attachment=True forces download instead of displaying in browser
-    # download_name sets the filename user sees (original filename, not the UUID one)
     return send_from_directory(
         app.config['UPLOAD_FOLDER'],
         attachment.filename,
