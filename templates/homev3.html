@@ -21,7 +21,7 @@
     <div class="tl-container">
         <nav class="tl-nav">
             <!-- Logo -->
-            <a href="#" class="tl-logo">
+            <a href="{{ url_for('home') }}" class="tl-logo">
                 <div class="tl-logo-mark">TL</div>
                 <div class="tl-logo-text">
                     <span class="tl-logo-main">UIUC Turbolearn</span>
@@ -45,8 +45,8 @@
                     <span class="sun-icon">☀️</span>
                 </button>
 
-                <a href="#" class="btn btn-ghost">Log in</a>
-                <a href="{{ url_for('index') }}" class="btn btn-primary">Get started</a>
+                <a href="{{ url_for('login') }}" class="btn btn-ghost">Log in</a>
+                <a href="{{ url_for('notes') }}" class="btn btn-primary">Get started</a>
             </div>
         </nav>
     </div>
@@ -73,7 +73,7 @@
                     </p>
 
                     <div class="tl-hero-actions">
-                        <a href="{{ url_for('index') }}" class="btn btn-accent btn-lg">
+                        <a href="{{ url_for('notes') }}" class="btn btn-accent btn-lg">
                             Start sharing notes
                         </a>
                         <a href="#features" class="btn btn-ghost btn-lg">

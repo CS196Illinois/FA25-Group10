@@ -368,13 +368,9 @@ def _get_filtered_notes(args):
 # Homepage route - landing page
 @app.route("/")
 def home():
-    # Check if there's a home template, otherwise redirect to notes
-    try:
-        current_user = get_current_user()
-        return render_template("homev3.html", current_user=current_user)
-    except:
-        # If homev3.html doesn't exist or has issues, redirect to notes
-        return redirect(url_for('notes'))
+    """Display the home page"""
+    current_user = get_current_user()
+    return render_template("homev3.html", current_user=current_user)
 
 # Notes feed route - handles both displaying notes (GET) and creating new notes (POST)
 @app.route("/notes", methods=["GET", "POST"])
@@ -468,8 +464,8 @@ def notes():
                 # Save all attachments to database
                 db.session.commit()
 
-        # Redirect back to the main page to show the new note
-        return redirect(url_for("index"))
+        # Redirect back to the notes feed to show the new note
+        return redirect(url_for("notes"))
 
     # HANDLING NOTE DISPLAY (GET REQUEST)
     # This runs when user visits the page to view notes
@@ -537,8 +533,8 @@ def notes():
     )
 
 
-@app.route("/notes")
-def notes_endpoint():
+@app.route("/api/notes")
+def notes_api():
     """Return a page of notes as JSON (HTML fragment + has_more flag).
 
     This endpoint supports the client-side "Load More" UI. It accepts the same
@@ -584,7 +580,7 @@ def like_note(note_id):
         db.session.commit()
 
     # Redirect back to the referring page
-    return redirect(request.referrer or url_for("index"))
+    return redirect(request.referrer or url_for("notes"))
 
 
 # Endpoint to add a comment to a note
@@ -601,14 +597,14 @@ def add_comment(note_id):
     body = request.form.get("comment_body", "").strip()
 
     if not body:
-        return redirect(request.referrer or url_for("index"))
+        return redirect(request.referrer or url_for("notes"))
 
     # Create a new comment
     new_comment = Comment(note_id=note_id, author=author, body=body)
     db.session.add(new_comment)
     db.session.commit()
 
-    return redirect(request.referrer or url_for("index"))
+    return redirect(request.referrer or url_for("notes"))
 
 
 # EDIT NOTE ROUTE
@@ -681,8 +677,8 @@ def edit_note(note_id):
     # Save all changes to the database
     db.session.commit()
 
-    # Redirect back to the main page to show the updated note
-    return redirect(url_for("index"))
+    # Redirect back to the notes feed to show the updated note
+    return redirect(url_for("notes"))
 
 
 # DELETE NOTE ROUTE
@@ -716,8 +712,8 @@ def delete_note(note_id):
     db.session.delete(note)
     db.session.commit()
 
-    # Redirect back to the main page
-    return redirect(url_for("index"))
+    # Redirect back to the notes feed
+    return redirect(url_for("notes"))
 
 
 # AUTHENTICATION ROUTES
@@ -751,7 +747,7 @@ def signup():
                 # Check if email confirmation is required
                 if response.session and response.session.access_token:
                     # Email confirmation is disabled - log user in immediately
-                    resp = redirect(url_for("index"))
+                    resp = redirect(url_for("notes"))
                     resp.set_cookie('access_token', response.session.access_token,
                                    httponly=True, secure=False)  # Set secure=True in production with HTTPS
                     return resp
@@ -801,7 +797,7 @@ def login():
 
             if response.user and response.session:
                 # Set the access token as a cookie
-                resp = redirect(url_for("index"))
+                resp = redirect(url_for("notes"))
                 resp.set_cookie('access_token', response.session.access_token,
                                httponly=True, secure=False)  # Set secure=True in production with HTTPS
                 return resp

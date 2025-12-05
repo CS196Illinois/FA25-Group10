@@ -346,7 +346,7 @@
         <div class="header-container">
             <a href="{{ url_for('home') }}" class="logo">📚 UIUC Turbolearn</a>
             <div class="header-actions">
-                <a href="{{ url_for('index') }}" class="btn btn-ghost">Back to Notes</a>
+                <a href="{{ url_for('notes') }}" class="btn btn-ghost">Back to Notes</a>
                 <button class="theme-toggle" aria-label="Toggle dark mode">
                     <span class="moon-icon">🌙</span>
                     <span class="sun-icon">☀️</span>
@@ -428,7 +428,7 @@
                 <div class="no-notes">
                     <div class="no-notes-icon">📝</div>
                     <p style="margin: 0 0 16px;">You haven't created any notes yet.</p>
-                    <a href="{{ url_for('index') }}" class="btn btn-submit">Create Your First Note</a>
+                    <a href="{{ url_for('notes') }}" class="btn btn-submit">Create Your First Note</a>
                 </div>
             {% endif %}
         </div>
