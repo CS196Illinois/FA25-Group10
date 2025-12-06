@@ -489,46 +489,20 @@
     <!-- Find Your Course Section -->
     <div class="section-card">
       <h2 class="section-heading">🔍 Find Your Course</h2>
-      <form method="get" action="/notes" id="course-filter-form">
+      <form method="get" action="/notes">
         <!-- Hidden fields to preserve other filters -->
         <input type="hidden" name="search" value="{{ search_query or '' }}">
         <input type="hidden" name="tag_filter" value="{{ tag_filter or 'All' }}">
         <input type="hidden" name="date_filter" value="{{ date_filter or 'All' }}">
         <input type="hidden" name="sort_by" value="{{ sort_by or 'recent' }}">
 
-        <div style="display: flex; gap: 16px; margin-top: 16px;">
-          <!-- Subject Dropdown -->
-          <select id="subject-select" name="subject" class="course-select">
-            <option value="">All Subjects</option>
-          </select>
-
-          <!-- Number Dropdown -->
-          <select id="number-select" name="number" class="course-select">
-            <option value="">All Numbers</option>
-          </select>
-
-          <!-- Hidden field to store combined class value for backend -->
-          <input type="hidden" name="class_filter" id="class-filter-hidden" value="{{ selected_filter or 'All' }}">
-
-          <!-- Sort options (how to order the results) -->
-          <select name="sort_by" onchange="this.form.submit()" style="min-width: 150px;">
-            <option value="recent" {% if sort_by == "recent" %}selected{% endif %}>Most Recent</option>
-            <option value="oldest" {% if sort_by == "oldest" %}selected{% endif %}>Oldest First</option>
-            <option value="title" {% if sort_by == "title" %}selected{% endif %}>Title (A-Z)</option>
-            <option value="most_liked" {% if sort_by == "most_liked" %}selected{% endif %}>Most Liked</option>
-            <option value="most_commented" {% if sort_by == "most_commented" %}selected{% endif %}>Most Commented</option>
-            <option value="popular" {% if sort_by == "popular" %}selected{% endif %}>Top (Comments + Likes)</option>
-          </select>
-          <!-- Quick top filter button: sorts by popularity (comments then likes) -->
-          <button type="button" style="margin-left:8px; background: rgba(237, 137, 54, 0.15); border: 1px solid var(--accent-terracotta); color: var(--accent-terracotta); padding: 8px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s ease;" onmouseover="this.style.background='rgba(237, 137, 54, 0.25)'" onmouseout="this.style.background='rgba(237, 137, 54, 0.15)'" onclick="setPopularSort()">⭐ Top</button>
-          <!-- Reset filters button -->
-          <button type="button" style="margin-left:8px; background: rgba(102, 126, 234, 0.15); border: 1px solid rgba(102, 126, 234, 0.4); color: var(--text-secondary); padding: 8px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s ease;" onmouseover="this.style.background='rgba(102, 126, 234, 0.25)'" onmouseout="this.style.background='rgba(102, 126, 234, 0.15)'" onclick="resetFilters()">🔄 Reset Filters</button>
-
-          <!-- Note count display badge -->
-          <div class="note-count" style="margin-left: auto;">
-            {{ total }} notes
-          </div>
-        </div>
+        <!-- Class filter dropdown -->
+        <select name="class_filter" onchange="this.form.submit()">
+          <option value="All" {% if selected_filter == "All" %}selected{% endif %}>All Classes</option>
+          {% for cls in classes %}
+            <option value="{{ cls }}" {% if selected_filter == cls %}selected{% endif %}>{{ cls }}</option>
+          {% endfor %}
+        </select>
       </form>
     </div>
 
@@ -579,6 +553,9 @@
 
           <!-- IMPORTANT: Keep the Top button from index.html -->
           <button type="button" style="margin-left:8px;" onclick="setPopularSort()">⭐ Top</button>
+
+          <!-- Reset filters button -->
+          <button type="button" style="margin-left:8px; background: rgba(102, 126, 234, 0.15); border: 1px solid rgba(102, 126, 234, 0.4); color: var(--text-secondary); padding: 8px 14px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s ease;" onmouseover="this.style.background='rgba(102, 126, 234, 0.25)'" onmouseout="this.style.background='rgba(102, 126, 234, 0.15)'" onclick="resetFilters()">🔄 Reset Filters</button>
         </div>
       </div>
 
