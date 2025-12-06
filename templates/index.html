@@ -16,6 +16,10 @@
   <!-- Notes page specific CSS -->
   <link rel="stylesheet" href="{{ url_for('static', filename='notes-page.css') }}">
 
+  <!-- Choices.js for searchable dropdowns -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+
   <style>
     /* Additional page-specific styles */
     body {
@@ -355,19 +359,6 @@
   </style>
 
   <script>
-    // ===== JAVASCRIPT FOR EDIT FUNCTIONALITY =====
-    // Toggles the edit form visibility for a specific note
-    function toggleEdit(noteId) {
-      // Get the edit form and note content elements
-      const editForm = document.getElementById('edit-form-' + noteId);
-      const noteContent = document.getElementById('note-content-' + noteId);
-
-      // Toggle the 'active' class to show/hide edit form
-      editForm.classList.toggle('active');
-      // Toggle the 'editing' class to show/hide note content
-      noteContent.classList.toggle('editing');
-    }
-
     // ===== JAVASCRIPT FOR CREATE NOTE MODAL =====
     // Opens the create note modal with animation
     function openCreateModal() {
@@ -403,6 +394,14 @@
   </script>
 </head>
 <body>
+  <!-- Hidden data for JavaScript -->
+  <div id="page-data"
+       style="display: none;"
+       data-page="{{ page|default(1) }}"
+       data-classes='{{ classes | tojson }}'
+       data-selected-filter="{{ selected_filter or 'All' }}">
+  </div>
+
   <!-- Navigation Header -->
   <nav class="navbar">
     <a href="{{ url_for('home') }}" class="navbar-logo">📚 UIUC Turbolearn</a>
@@ -485,53 +484,84 @@
       <button class="add-note-btn" onclick="openCreateModal()">Add Note +</button>
     </div>
 
-    <!-- Filter and Search Bar -->
-    <!-- This form contains all filters: class, author, date range, search, and sort options -->
-    <div id="filters" class="filter-section">
-      <form method="get" action="/notes" class="filter-form">
-        <!-- preserve tag filter when submitting other filters -->
+    <!-- Find Your Course Section -->
+    <div class="section-card">
+      <h2 class="section-heading">🔍 Find Your Course</h2>
+      <form method="get" action="/notes" id="course-filter-form">
+        <!-- Hidden fields to preserve other filters -->
+        <input type="hidden" name="search" value="{{ search_query or '' }}">
         <input type="hidden" name="tag_filter" value="{{ tag_filter or 'All' }}">
+        <input type="hidden" name="date_filter" value="{{ date_filter or 'All' }}">
+        <input type="hidden" name="sort_by" value="{{ sort_by or 'recent' }}">
 
-        <!-- Row 1: Main filters (Class, Date Range, Sort) -->
-        <div style="display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: center;">
-
-          <!-- Filter by class (CS124, MATH221, etc.) -->
-          <select name="class_filter" onchange="this.form.submit()" style="min-width: 150px;">
-            <option value="All" {% if selected_filter == "All" %}selected{% endif %}>All Classes</option>
-            {% for c in classes %}
-            <option value="{{ c }}" {% if selected_filter == c %}selected{% endif %}>{{ c }}</option>
-            {% endfor %}
+        <div style="display: flex; gap: 16px; margin-top: 16px;">
+          <!-- Subject Dropdown -->
+          <select id="subject-select" name="subject" class="course-select">
+            <option value="">All Subjects</option>
           </select>
 
-          <!-- Filter by date range (today, this week, this month, all time) -->
-          <select name="date_filter" onchange="this.form.submit()" style="min-width: 150px;">
-            <option value="All" {% if date_filter == "All" %}selected{% endif %}>All Time</option>
-            <option value="Today" {% if date_filter == "Today" %}selected{% endif %}>Today</option>
-            <option value="Week" {% if date_filter == "Week" %}selected{% endif %}>This Week</option>
-            <option value="Month" {% if date_filter == "Month" %}selected{% endif %}>This Month</option>
+          <!-- Number Dropdown -->
+          <select id="number-select" name="number" class="course-select">
+            <option value="">All Numbers</option>
           </select>
 
-          <!-- Sort options (how to order the results) -->
-          <select name="sort_by" onchange="this.form.submit()" style="min-width: 150px;">
-            <option value="recent" {% if sort_by == "recent" %}selected{% endif %}>Most Recent</option>
-            <option value="oldest" {% if sort_by == "oldest" %}selected{% endif %}>Oldest First</option>
-            <option value="title" {% if sort_by == "title" %}selected{% endif %}>Title (A-Z)</option>
-            <option value="author" {% if sort_by == "author" %}selected{% endif %}>Author (A-Z)</option>
-            <option value="most_liked" {% if sort_by == "most_liked" %}selected{% endif %}>Most Liked</option>
-            <option value="most_commented" {% if sort_by == "most_commented" %}selected{% endif %}>Most Commented</option>
-            <option value="popular" {% if sort_by == "popular" %}selected{% endif %}>Top (Comments + Likes)</option>
-          </select>
-          <!-- Quick top filter button: sorts by popularity (comments then likes) -->
-          <button type="button" style="margin-left:8px;" onclick="setPopularSort()">⭐ Top</button>
-
-          <!-- Note count display badge -->
-          <div class="note-count" style="margin-left: auto;">
-            {{ total }} notes
-          </div>
+          <!-- Hidden field to store combined class value for backend -->
+          <input type="hidden" name="class_filter" id="class-filter-hidden" value="{{ selected_filter or 'All' }}">
         </div>
-
       </form>
-      <!-- Tag cloud -->
+    </div>
+
+    <!-- Posted Notes Section -->
+    <div class="section-card">
+      <div class="section-header-row">
+        <h2 class="section-heading">📚 Posted Notes</h2>
+
+        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+          <!-- Note count -->
+          <div class="note-count">{{ total }} notes</div>
+
+          <!-- Date filter dropdown -->
+          <form method="get" action="/notes" style="margin: 0;">
+            <!-- Preserve current filters -->
+            <input type="hidden" name="search" value="{{ search_query or '' }}">
+            <input type="hidden" name="class_filter" value="{{ selected_filter or 'All' }}">
+            <input type="hidden" name="tag_filter" value="{{ tag_filter or 'All' }}">
+            <input type="hidden" name="sort_by" value="{{ sort_by or 'recent' }}">
+
+            <select name="date_filter" onchange="this.form.submit()">
+              <option value="All" {% if date_filter == "All" %}selected{% endif %}>All Time</option>
+              <option value="Today" {% if date_filter == "Today" %}selected{% endif %}>Today</option>
+              <option value="Week" {% if date_filter == "Week" %}selected{% endif %}>This Week</option>
+              <option value="Month" {% if date_filter == "Month" %}selected{% endif %}>This Month</option>
+            </select>
+          </form>
+
+          <!-- Sort dropdown - KEEP ALL OPTIONS including Most Liked, Most Commented, Popular -->
+          <form method="get" action="/notes" style="margin: 0;">
+            <!-- Preserve current filters -->
+            <input type="hidden" name="search" value="{{ search_query or '' }}">
+            <input type="hidden" name="class_filter" value="{{ selected_filter or 'All' }}">
+            <input type="hidden" name="tag_filter" value="{{ tag_filter or 'All' }}">
+            <input type="hidden" name="date_filter" value="{{ date_filter or 'All' }}">
+
+            <select name="sort_by" onchange="this.form.submit()">
+              <option value="recent" {% if sort_by == "recent" %}selected{% endif %}>Most Recent</option>
+              <option value="oldest" {% if sort_by == "oldest" %}selected{% endif %}>Oldest First</option>
+              <option value="title" {% if sort_by == "title" %}selected{% endif %}>Title (A-Z)</option>
+              <option value="author" {% if sort_by == "author" %}selected{% endif %}>Author (A-Z)</option>
+              <!-- IMPORTANT: Keep these extra options from index.html -->
+              <option value="most_liked" {% if sort_by == "most_liked" %}selected{% endif %}>Most Liked</option>
+              <option value="most_commented" {% if sort_by == "most_commented" %}selected{% endif %}>Most Commented</option>
+              <option value="popular" {% if sort_by == "popular" %}selected{% endif %}>Top (Comments + Likes)</option>
+            </select>
+          </form>
+
+          <!-- IMPORTANT: Keep the Top button from index.html -->
+          <button type="button" style="margin-left:8px;" onclick="setPopularSort()">⭐ Top</button>
+        </div>
+      </div>
+
+      <!-- IMPORTANT: Keep the tag cloud from index.html -->
       <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
         {% for tag, count in tags[:30] %}
           <a href="/notes?tag_filter={{ tag }}" class="meta-tag" style="text-decoration:none;">#{{ tag }} ({{ count }})</a>
@@ -876,29 +906,6 @@
       }
     });
 
-    // Pagination: Load more notes via AJAX
-    let currentPage = parseInt("{{ page|default(1) }}", 10) || 1;
-    async function loadMore() {
-      currentPage += 1;
-      const form = document.querySelector('.filter-form');
-      const params = new URLSearchParams(new FormData(form));
-      params.set('page', currentPage);
-      const url = '/notes?' + params.toString();
-      try {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error('Network response was not ok');
-        const data = await res.json();
-        const container = document.getElementById('notes-container');
-        container.insertAdjacentHTML('beforeend', data.html);
-        if (!data.has_more) {
-          const btn = document.getElementById('load-more');
-          if (btn) btn.style.display = 'none';
-        }
-      } catch (err) {
-        console.error('Failed to load more notes', err);
-      }
-    }
-
     // Set popular sort (comments then likes) and submit the filter form
     function setPopularSort() {
       const select = document.querySelector('select[name="sort_by"]');
@@ -957,5 +964,8 @@
 
   <!-- Theme toggle script -->
   <script src="{{ url_for('static', filename='theme-toggle.js') }}"></script>
+
+  <!-- Notes page JavaScript for dropdown logic -->
+  <script src="{{ url_for('static', filename='notes-page.js') }}"></script>
   </body>
 </html>
