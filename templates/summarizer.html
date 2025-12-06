@@ -13,6 +13,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
+  <!-- Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
   <style>
     .loading-spinner {
       display: inline-block;
@@ -148,11 +151,11 @@
         </a>
 
         <div class="tl-nav-actions">
-          <a href="/notes-feed" style="color: var(--text-primary); text-decoration: none; padding: 8px 16px; margin: 0 8px; white-space: nowrap;">📝 Notes Feed</a>
+          <a href="/notes" style="color: var(--text-primary); text-decoration: none; padding: 8px 16px; margin: 0 8px; white-space: nowrap;"><i class="ph ph-note-pencil"></i> Notes Feed</a>
 
           <button class="theme-toggle" aria-label="Toggle dark mode">
-            <span class="moon-icon">🌙</span>
-            <span class="sun-icon">☀️</span>
+            <span class="moon-icon"><i class="ph ph-moon"></i></span>
+            <span class="sun-icon"><i class="ph ph-sun"></i></span>
           </button>
         </div>
       </nav>
@@ -163,12 +166,12 @@
     <div class="tl-container">
 
       <div class="info-box" style="margin-top: 24px;">
-        💡 This tool uses free AI to summarize your notes. Simply paste your text below and click "Summarize" to get a concise version. Perfect for condensing lecture notes or study materials!
+        <i class="ph ph-lightbulb"></i> This tool uses free AI to summarize your notes. Simply paste your text below and click "Summarize" to get a concise version. Perfect for condensing lecture notes or study materials!
       </div>
 
       <!-- Main Input Section -->
       <div class="section-card">
-        <h2 class="section-heading">📝 Your Notes</h2>
+        <h2 class="section-heading"><i class="ph ph-note-pencil"></i> Your Notes</h2>
 
         <form id="summarizer-form" style="margin-top: 24px;">
           <textarea
@@ -194,7 +197,7 @@
 
       <!-- Summary Output Section -->
       <div class="summary-output" id="summary-output">
-        <div class="summary-title">📄 Summary</div>
+        <div class="summary-title"><i class="ph ph-file-text"></i> Summary</div>
         <div class="summary-text" id="summary-text"></div>
       </div>
 

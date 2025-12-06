@@ -13,6 +13,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
     <style>
         body {
             padding: 80px 0 40px;
@@ -344,12 +347,12 @@
     <!-- Header Navigation -->
     <nav class="header-nav">
         <div class="header-container">
-            <a href="{{ url_for('home') }}" class="logo">📚 UIUC Turbolearn</a>
+            <a href="{{ url_for('home') }}" class="logo"><i class="ph ph-book-open"></i> UIUC Turbolearn</a>
             <div class="header-actions">
                 <a href="{{ url_for('notes') }}" class="btn btn-ghost">Back to Notes</a>
                 <button class="theme-toggle" aria-label="Toggle dark mode">
-                    <span class="moon-icon">🌙</span>
-                    <span class="sun-icon">☀️</span>
+                    <span class="moon-icon"><i class="ph ph-moon"></i></span>
+                    <span class="sun-icon"><i class="ph ph-sun"></i></span>
                 </button>
                 <a href="{{ url_for('logout') }}" class="btn btn-logout">Logout</a>
             </div>
@@ -426,7 +429,7 @@
                 {% endfor %}
             {% else %}
                 <div class="no-notes">
-                    <div class="no-notes-icon">📝</div>
+                    <div class="no-notes-icon"><i class="ph ph-note-pencil"></i></div>
                     <p style="margin: 0 0 16px;">You haven't created any notes yet.</p>
                     <a href="{{ url_for('notes') }}" class="btn btn-submit">Create Your First Note</a>
                 </div>

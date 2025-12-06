@@ -407,7 +407,9 @@
 
   <!-- Navigation Header -->
   <nav class="navbar">
-    <a href="{{ url_for('home') }}" class="navbar-logo"><i class="ph ph-books"></i> UIUC Turbolearn</a>
+    <a href="{{ url_for('home') }}" class="navbar-logo">
+      <img src="{{ url_for('static', filename='images/logo.png') }}" alt="UIUC Turbolearn Logo" style="height: 45px; width: auto; object-fit: contain;">
+    </a>
 
     <!-- Search bar in navbar -->
     <div class="navbar-search">
@@ -446,14 +448,14 @@
   </nav>
 
   <div class="container">
-    <div class="title" style="margin-top: 10px;">👋 Welcome to UIUC Turbolearn!</div>
+    <div class="title" style="margin-top: 10px;"><i class="ph-duotone ph-hand-waving" style="color: var(--accent-terracotta);"></i> Welcome to UIUC Turbolearn!</div>
 
     <!-- Notifications Banner for @Mentions -->
     {% if unread_mentions and unread_mentions|length > 0 %}
     <div style="background: linear-gradient(135deg, rgba(237, 137, 54, 0.15) 0%, rgba(237, 137, 54, 0.05) 100%); border: 2px solid var(--accent-terracotta); border-radius: var(--radius-lg); padding: 16px 24px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(237, 137, 54, 0.2);">
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
         <h3 style="margin: 0; color: var(--text-primary); font-size: 16px; font-weight: 700;">
-          🔔 You have {{ unread_mentions|length }} new mention{{ 's' if unread_mentions|length > 1 else '' }}
+          <i class="ph ph-bell"></i> You have {{ unread_mentions|length }} new mention{{ 's' if unread_mentions|length > 1 else '' }}
         </h3>
         <form method="POST" action="/mentions/mark-all-read" style="margin: 0;">
           <button type="submit" style="background: var(--accent-terracotta); color: white; border: none; padding: 6px 12px; border-radius: var(--radius-md); font-size: 12px; cursor: pointer; font-weight: 600;">
@@ -497,20 +499,13 @@
         <input type="hidden" name="date_filter" value="{{ date_filter or 'All' }}">
         <input type="hidden" name="sort_by" value="{{ sort_by or 'recent' }}">
 
-        <div style="display: flex; gap: 16px; margin-top: 16px;">
-          <!-- Subject Dropdown -->
-          <select id="subject-select" name="subject" class="course-select">
-            <option value="">All Subjects</option>
-          </select>
-
-          <!-- Number Dropdown -->
-          <select id="number-select" name="number" class="course-select">
-            <option value="">All Numbers</option>
-          </select>
-
-          <!-- Hidden field to store combined class value for backend -->
-          <input type="hidden" name="class_filter" id="class-filter-hidden" value="{{ selected_filter or 'All' }}">
-        </div>
+        <!-- Class filter dropdown -->
+        <select name="class_filter" onchange="this.form.submit()">
+          <option value="All" {% if selected_filter == "All" %}selected{% endif %}>All Classes</option>
+          {% for cls in classes %}
+            <option value="{{ cls }}" {% if selected_filter == cls %}selected{% endif %}>{{ cls }}</option>
+          {% endfor %}
+        </select>
       </form>
     </div>
 
@@ -587,8 +582,8 @@
           <div class="note-meta">
             <span class="meta-tag"><i class="ph ph-user"></i> {{ n.author }}</span>
             <span class="meta-tag"><i class="ph ph-calendar"></i> {{ n.created.strftime('%Y-%m-%d %H:%M') }}</span>
-            <span class="meta-tag"><i class="ph ph-book"></i> {{ n.class_code }}</span>
-            <span class="meta-tag"><i class="ph ph-heart"></i> {{ n.likes|length }}</span>
+            <span class="meta-tag"><i class="ph ph-book-open"></i> {{ n.class_code }}</span>
+            <span class="meta-tag"><i class="ph-fill ph-heart" style="color: #ef4444;"></i> {{ n.likes|length }}</span>
             {# Tags badges on note #}
             {% if n.get_tags_list() %}
               {% for tag in n.get_tags_list() %}
@@ -610,7 +605,7 @@
           {% if n.attachments %}
           <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(102, 126, 234, 0.2);">
             <div style="font-size: 13px; font-weight: 600; color: #a0a3bd; margin-bottom: 8px;">
-              📎 Attachments ({{ n.attachments|length }}):
+              <i class="ph ph-paperclip"></i> Attachments ({{ n.attachments|length }}):
             </div>
             <!-- List of downloadable attachments -->
             <div style="display: flex; flex-wrap: wrap; gap: 8px;">
@@ -621,16 +616,16 @@
                  onmouseover="this.style.background='rgba(102, 126, 234, 0.3)'; this.style.transform='translateY(-2px)'"
                  onmouseout="this.style.background='rgba(102, 126, 234, 0.2)'; this.style.transform='translateY(0)'">
                 <!-- File type icon based on extension -->
-                {% if attachment.file_type == 'pdf' %}📄
-                {% elif attachment.file_type in ['png', 'jpg', 'jpeg', 'gif'] %}🖼️
-                {% elif attachment.file_type in ['doc', 'docx'] %}📝
-                {% elif attachment.file_type in ['ppt', 'pptx'] %}📊
-                {% else %}📎
+                {% if attachment.file_type == 'pdf' %}<i class="ph ph-file-pdf"></i>
+                {% elif attachment.file_type in ['png', 'jpg', 'jpeg', 'gif'] %}<i class="ph ph-image"></i>
+                {% elif attachment.file_type in ['doc', 'docx'] %}<i class="ph ph-file-doc"></i>
+                {% elif attachment.file_type in ['ppt', 'pptx'] %}<i class="ph ph-file-ppt"></i>
+                {% else %}<i class="ph ph-paperclip"></i>
                 {% endif %}
                 <!-- Display original filename -->
                 <span>{{ attachment.original_filename }}</span>
                 <!-- Download icon -->
-                <span style="opacity: 0.7;">⬇</span>
+                <span style="opacity: 0.7;"><i class="ph ph-download-simple"></i></span>
               </a>
               {% endfor %}
             </div>
@@ -674,17 +669,17 @@
             {% if n.attachments %}
             <div style="margin-bottom: 12px; padding: 12px; background: rgba(102, 126, 234, 0.1); border-radius: 8px;">
               <div style="font-size: 13px; font-weight: 600; color: #a0a3bd; margin-bottom: 8px;">
-                📎 Existing Attachments:
+                <i class="ph ph-paperclip"></i> Existing Attachments:
               </div>
               {% for attachment in n.attachments %}
               <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
                 <input type="checkbox" name="delete_attachments" value="{{ attachment.id }}" id="delete-{{ attachment.id }}">
                 <label for="delete-{{ attachment.id }}" style="cursor: pointer; font-size: 13px; color: #e4e6eb;">
-                  {% if attachment.file_type == 'pdf' %}📄
-                  {% elif attachment.file_type in ['png', 'jpg', 'jpeg', 'gif'] %}🖼️
-                  {% elif attachment.file_type in ['doc', 'docx'] %}📝
-                  {% elif attachment.file_type in ['ppt', 'pptx'] %}📊
-                  {% else %}📎
+                  {% if attachment.file_type == 'pdf' %}<i class="ph ph-file-pdf"></i>
+                  {% elif attachment.file_type in ['png', 'jpg', 'jpeg', 'gif'] %}<i class="ph ph-image"></i>
+                  {% elif attachment.file_type in ['doc', 'docx'] %}<i class="ph ph-file-doc"></i>
+                  {% elif attachment.file_type in ['ppt', 'pptx'] %}<i class="ph ph-file-ppt"></i>
+                  {% else %}<i class="ph ph-paperclip"></i>
                   {% endif %}
                   {{ attachment.original_filename }} <span style="color: #f44336;">(check to delete)</span>
                 </label>
@@ -696,7 +691,7 @@
             <!-- New attachments upload -->
             <div style="margin-bottom: 12px;">
               <label style="display: block; margin-bottom: 8px; color: #a0a3bd; font-size: 14px; font-weight: 600;">
-                📎 Add New Attachments (optional)
+                <i class="ph ph-paperclip"></i> Add New Attachments (optional)
               </label>
               <input
                 type="file"
@@ -732,7 +727,7 @@
 
           <!-- Like button - available to all users -->
           <form method="POST" action="/like/{{ n.id }}" style="display:inline; margin-left:8px;">
-            <button type="submit" class="btn-small" title="Like"><i class="ph ph-heart"></i> Like</button>
+            <button type="submit" class="btn-small" title="Like"><i class="ph-fill ph-heart" style="color: #ef4444;"></i> Like</button>
           </form>
         </div>
 
@@ -741,7 +736,7 @@
         <div style="margin-top: 16px; padding: 16px; background: rgba(23, 27, 46, 0.4); border-radius: 12px; border-left: 3px solid rgba(102, 126, 234, 0.5);">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
             <div style="font-weight: 600; color: #a0a3bd; font-size: 14px;">
-              💬 Comments ({{ n.comments|length }})
+              <i class="ph ph-chat-circle"></i> Comments ({{ n.comments|length }})
             </div>
             <button onclick="toggleComments({{ n.id }})" class="btn-small" style="padding: 4px 10px; font-size: 12px; background: rgba(102, 126, 234, 0.15); border: 1px solid rgba(102, 126, 234, 0.3); color: #a0a3bd;">
               <span class="toggle-text-{{ n.id }}">Hide comments</span>
@@ -786,7 +781,7 @@
         <div style="margin-top: 12px;">
           <form method="POST" action="/comment/{{ n.id }}" style="display:flex; gap:8px; align-items:center;">
             <input type="text" name="comment_body" placeholder="Add a comment or @mention someone..." style="flex:1; padding:8px 12px; border-radius:8px; border:1px solid rgba(102,126,234,0.2); background: rgba(23,27,46,0.6); color:#e4e6eb; font-size:13px;" required>
-            <button type="submit" class="btn-small btn-edit">💬 Post</button>
+            <button type="submit" class="btn-small btn-edit"><i class="ph ph-chat-circle"></i> Post</button>
           </form>
         </div>
         {% else %}
@@ -864,7 +859,7 @@
             <!-- The 'multiple' attribute allows users to select multiple files at once -->
             <div style="margin-top: 16px;">
               <label style="display: block; margin-bottom: 8px; color: #a0a3bd; font-size: 14px; font-weight: 600;">
-                📎 Attach Files (optional)
+                <i class="ph ph-paperclip"></i> Attach Files (optional)
               </label>
               <input
                 type="file"
@@ -890,7 +885,7 @@
 
   <!-- Scroll to Top Button (Bottom Left) -->
   <button class="scroll-to-top" id="scrollToTopBtn" onclick="scrollToTop()" aria-label="Scroll to top">
-    ↑
+    <i class="ph ph-arrow-up"></i>
   </button>
 
   <script>
@@ -916,6 +911,12 @@
         select.value = 'popular';
         select.form.submit();
       }
+    }
+
+    // Reset all filters to default values
+    function resetFilters() {
+      // Redirect to /notes with no query parameters (all default filters)
+      window.location.href = '/notes';
     }
 
     // Mark a specific mention as read
