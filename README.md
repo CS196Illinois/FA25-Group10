@@ -1,7 +1,8 @@
-# Group TEAM_NUMBER
-Group Name: TEAM_NAME
+# UIUC TurboLearn
 
-[MVP Link](https://docs.google.com/document/d/1xFI9DDdO5HZAcu36Y6NL-RTDry5E3WHkfy-ZEWuqbXM/edit?usp=sharing)
+Group 10 - FA25
+
+[MVP Link]([https://docs.google.com/document/d/1xFI9DDdO5HZAcu36Y6NL-RTDry5E3WHkfy-ZEWuqbXM/edit?usp=sharing](https://docs.google.com/document/d/1oC2AsTqQxLYonm2EUvAERGEcO07wXOhU5fIP45uL-j8/edit?usp=sharing))
 
 ## Project Overview
 
@@ -40,6 +41,6 @@ FA25-Group10/
 
 ## Team Members
 
-Team Members: STUDENTS_NETIDS
+Team Members: aidenfd2, ammarj2
 
 Project Manager: sriram6
